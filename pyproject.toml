@@ -1,0 +1,16 @@
+[project]
+name = "shipments-api"
+version = "0.1.0"
+description = "first service shipments-api"
+authors = [
+    {name = "Druce99",email = "solaa07@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
