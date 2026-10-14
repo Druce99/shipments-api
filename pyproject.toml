@@ -1,0 +1,47 @@
+[project]
+name = "shipments-api"
+version = "0.1.0"
+description = "first service shipments-api"
+authors = [
+    {name = "Druce99",email = "solaa07@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.17.0,<0.18.0)",
+    "mypy (>=2.4.0,<3.0.0)",
+    "bandit (>=1.9.4,<2.0.0)",
+    "pre-commit (>=4.7.0,<5.0.0)"
+]
+
+[tool.ruff]
+# target-version is inferred from requires-python
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes: unused imports, undefined names
+    "I",    # isort: import order
+    "B",    # flake8-bugbear: likely bugs
+    "UP",   # pyupgrade: modern syntax for the target Python
+    "C90",  # mccabe: cyclomatic complexity
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+strict = true
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
