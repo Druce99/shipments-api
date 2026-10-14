@@ -22,3 +22,26 @@ dev = [
     "bandit (>=1.9.4,<2.0.0)",
     "pre-commit (>=4.7.0,<5.0.0)"
 ]
+
+[tool.ruff]
+# target-version is inferred from requires-python
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes: unused imports, undefined names
+    "I",    # isort: import order
+    "B",    # flake8-bugbear: likely bugs
+    "UP",   # pyupgrade: modern syntax for the target Python
+    "C90",  # mccabe: cyclomatic complexity
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+strict = true
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
