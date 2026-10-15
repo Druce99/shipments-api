@@ -1,1 +1,1 @@
-First service
+Сервис отслеживания отправлений: FastAPI, PostgreSQL, Kafka. Учебный проект, в разработке
