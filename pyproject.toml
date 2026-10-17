@@ -46,3 +46,7 @@ strict = true
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests"]
