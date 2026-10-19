@@ -8,6 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "pydantic-settings (>=2.16.0,<3.0.0)"
 ]
 
 
@@ -43,6 +44,7 @@ max-complexity = 10
 
 [tool.mypy]
 strict = true
+plugins = ["pydantic.mypy"]
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
