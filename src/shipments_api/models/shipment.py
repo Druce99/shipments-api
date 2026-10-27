@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Index, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shipments_api.domain.statuses import ShipmentStatus
 from shipments_api.models.base import Base
@@ -31,6 +31,9 @@ class Shipment(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    history: Mapped[list["StatusHistory"]] = relationship(
+        back_populates="shipment", order_by="StatusHistory.id", lazy="raise"
+    )
 
 
 class StatusHistory(Base):
@@ -42,3 +45,4 @@ class StatusHistory(Base):
     status: Mapped[ShipmentStatus] = mapped_column(status_column())
     comment: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    shipment: Mapped["Shipment"] = relationship(back_populates="history", lazy="raise")
