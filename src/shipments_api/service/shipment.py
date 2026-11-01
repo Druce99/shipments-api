@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from shipments_api.domain.exceptions import ShipmentNotFound
 from shipments_api.domain.statuses import ShipmentStatus, validate_transition
+from shipments_api.domain.tracking import generate_tracking_number
 from shipments_api.models.shipment import Shipment, StatusHistory
 from shipments_api.repository.shipment import ShipmentRepository
 
@@ -24,4 +25,19 @@ class ShipmentService:
             shipment.current_status = new_status
             new_history = StatusHistory(shipment_id=shipment.id, status=new_status, comment=comment)
             await self._repository.add_history(new_history)
+            return shipment
+
+    async def create_shipment(self, sender: str, recipient: str) -> Shipment:
+        async with self._session.begin():
+            shipment = Shipment(
+                tracking_number=generate_tracking_number(),
+                sender=sender,
+                recipient=recipient,
+                current_status=ShipmentStatus.CREATED,
+            )
+            await self._repository.add(shipment)
+            history = StatusHistory(
+                shipment_id=shipment.id, status=ShipmentStatus.CREATED, comment=None
+            )
+            await self._repository.add_history(history)
             return shipment
