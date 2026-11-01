@@ -100,3 +100,44 @@ async def test_change_status_rolls_back_status_when_history_write_fails(
     status, history = await read_state(session, shipment_id)
     assert status == ShipmentStatus.CREATED
     assert history == []
+
+
+@pytest.mark.asyncio
+async def test_create_shipment_saves_shipment_with_initial_history(
+    session: AsyncSession, service: ShipmentService
+) -> None:
+    created = await service.create_shipment(sender="Alice", recipient="Bob")
+    shipment_id = created.id
+
+    session.expunge_all()
+    repo = ShipmentRepository(session)
+    saved = await repo.get(shipment_id)
+    history = await repo.list_history(shipment_id)
+    assert saved is not None
+    assert saved.tracking_number.startswith("TRK-")
+    assert saved.sender == "Alice"
+    assert saved.recipient == "Bob"
+    assert saved.current_status == ShipmentStatus.CREATED
+    assert [(h.status, h.comment) for h in history] == [(ShipmentStatus.CREATED, None)]
+
+
+@pytest.mark.asyncio
+async def test_create_shipment_rolls_back_shipment_when_history_write_fails(
+    session: AsyncSession,
+    service: ShipmentService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_add_history = ShipmentRepository.add_history
+
+    async def add_history_then_fail(self: ShipmentRepository, entry: StatusHistory) -> None:
+        await original_add_history(self, entry)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(ShipmentRepository, "add_history", add_history_then_fail)
+
+    with pytest.raises(RuntimeError):
+        await service.create_shipment(sender="Alice", recipient="Bob")
+
+    session.expunge_all()
+    saved = await ShipmentRepository(session).list_shipments(status=None, limit=10, offset=0)
+    assert list(saved) == []
