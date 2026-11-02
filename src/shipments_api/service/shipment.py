@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,3 +42,27 @@ class ShipmentService:
             )
             await self._repository.add_history(history)
             return shipment
+
+    async def get_shipment(self, shipment_id: uuid.UUID) -> Shipment:
+        async with self._session.begin():
+            shipment = await self._repository.get(shipment_id)
+            if shipment is None:
+                raise ShipmentNotFound(shipment_id)
+            return shipment
+
+    async def get_history(self, shipment_id: uuid.UUID) -> Sequence[StatusHistory]:
+        async with self._session.begin():
+            shipment = await self._repository.get(shipment_id)
+            if shipment is None:
+                raise ShipmentNotFound(shipment_id)
+            history = await self._repository.list_history(shipment_id)
+            return history
+
+    async def list_shipments(
+        self, *, status: ShipmentStatus | None, limit: int, offset: int
+    ) -> Sequence[Shipment]:
+        async with self._session.begin():
+            list_shipment = await self._repository.list_shipments(
+                status=status, limit=limit, offset=offset
+            )
+            return list_shipment
