@@ -141,3 +141,80 @@ async def test_create_shipment_rolls_back_shipment_when_history_write_fails(
     session.expunge_all()
     saved = await ShipmentRepository(session).list_shipments(status=None, limit=10, offset=0)
     assert list(saved) == []
+
+
+@pytest.mark.asyncio
+async def test_get_shipment_returns_existing_shipment(
+    session: AsyncSession, service: ShipmentService
+) -> None:
+    shipment_id = await create_shipment(session)
+
+    result = await service.get_shipment(shipment_id)
+
+    assert result.id == shipment_id
+    assert result.sender == "Alice"
+
+
+@pytest.mark.asyncio
+async def test_get_shipment_raises_not_found_for_unknown_shipment(
+    service: ShipmentService,
+) -> None:
+    with pytest.raises(ShipmentNotFound):
+        await service.get_shipment(uuid.uuid4())
+
+
+@pytest.mark.asyncio
+async def test_get_history_returns_entries_in_order_of_writing(
+    service: ShipmentService,
+) -> None:
+    created = await service.create_shipment(sender="Alice", recipient="Bob")
+    await service.change_status(created.id, ShipmentStatus.PICKED_UP)
+    await service.change_status(created.id, ShipmentStatus.IN_TRANSIT)
+
+    history = await service.get_history(created.id)
+
+    assert [h.status for h in history] == [
+        ShipmentStatus.CREATED,
+        ShipmentStatus.PICKED_UP,
+        ShipmentStatus.IN_TRANSIT,
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_history_raises_not_found_for_unknown_shipment(
+    service: ShipmentService,
+) -> None:
+    with pytest.raises(ShipmentNotFound):
+        await service.get_history(uuid.uuid4())
+
+
+@pytest.mark.asyncio
+async def test_get_history_returns_empty_list_for_shipment_without_history(
+    session: AsyncSession, service: ShipmentService
+) -> None:
+    shipment_id = await create_shipment(session)
+
+    history = await service.get_history(shipment_id)
+
+    assert list(history) == []
+
+
+@pytest.mark.asyncio
+async def test_list_shipments_filters_by_status(service: ShipmentService) -> None:
+    await service.create_shipment(sender="Alice", recipient="Bob")
+    picked_up = await service.create_shipment(sender="Carol", recipient="Dan")
+    await service.change_status(picked_up.id, ShipmentStatus.PICKED_UP)
+
+    result = await service.list_shipments(status=ShipmentStatus.PICKED_UP, limit=10, offset=0)
+
+    assert [s.id for s in result] == [picked_up.id]
+
+
+@pytest.mark.asyncio
+async def test_list_shipments_without_status_returns_all(service: ShipmentService) -> None:
+    await service.create_shipment(sender="Alice", recipient="Bob")
+    await service.create_shipment(sender="Carol", recipient="Dan")
+
+    result = await service.list_shipments(status=None, limit=10, offset=0)
+
+    assert len(result) == 2
