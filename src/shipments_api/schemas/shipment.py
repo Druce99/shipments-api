@@ -21,3 +21,17 @@ class ShipmentRead(BaseModel):
     current_status: ShipmentStatus
     created_at: datetime
     updated_at: datetime
+
+
+class StatusChange(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    status: ShipmentStatus
+    comment: str | None = Field(min_length=1, max_length=500, default=None)
+
+
+class StatusHistoryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    status: ShipmentStatus
+    comment: str | None
+    created_at: datetime
