@@ -140,3 +140,68 @@ async def test_list_shipments_rejects_invalid_query_params(
     response = await client.get("/shipments", params=params)
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_change_status_updates_shipment_and_writes_history(client: AsyncClient) -> None:
+    created = await client.post("/shipments", json={"sender": "Alice", "recipient": "Bob"})
+    shipment_id = created.json()["id"]
+
+    response = await client.patch(
+        f"/shipments/{shipment_id}/status",
+        json={"status": "picked_up", "comment": "Courier took it"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["current_status"] == "picked_up"
+    history = await client.get(f"/shipments/{shipment_id}/history")
+    assert [(e["status"], e["comment"]) for e in history.json()] == [
+        ("created", None),
+        ("picked_up", "Courier took it"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_change_status_rejects_invalid_transition_with_409(client: AsyncClient) -> None:
+    created = await client.post("/shipments", json={"sender": "Alice", "recipient": "Bob"})
+    shipment_id = created.json()["id"]
+
+    response = await client.patch(f"/shipments/{shipment_id}/status", json={"status": "delivered"})
+
+    assert response.status_code == 409
+    assert "Cannot change status" in response.json()["detail"]
+    current = await client.get(f"/shipments/{shipment_id}")
+    history = await client.get(f"/shipments/{shipment_id}/history")
+    assert current.json()["current_status"] == "created"
+    assert len(history.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_change_status_returns_404_for_unknown_shipment(client: AsyncClient) -> None:
+    response = await client.patch(f"/shipments/{uuid.uuid4()}/status", json={"status": "picked_up"})
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_change_status_rejects_unknown_status_with_422(client: AsyncClient) -> None:
+    created = await client.post("/shipments", json={"sender": "Alice", "recipient": "Bob"})
+    shipment_id = created.json()["id"]
+
+    response = await client.patch(f"/shipments/{shipment_id}/status", json={"status": "flying"})
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_shipments_filters_by_status_after_change(client: AsyncClient) -> None:
+    moved = await client.post("/shipments", json={"sender": "Alice", "recipient": "Bob"})
+    await client.post("/shipments", json={"sender": "Carol", "recipient": "Dan"})
+    await client.patch(f"/shipments/{moved.json()['id']}/status", json={"status": "picked_up"})
+
+    picked_up = await client.get("/shipments", params={"status": "picked_up"})
+    created = await client.get("/shipments", params={"status": "created"})
+
+    assert [s["id"] for s in picked_up.json()] == [moved.json()["id"]]
+    assert moved.json()["id"] not in [s["id"] for s in created.json()]
+    assert len(created.json()) == 1
