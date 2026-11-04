@@ -21,6 +21,7 @@ def status_column() -> Enum:
 
 class Shipment(Base):
     __tablename__ = "shipments"
+    __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     tracking_number: Mapped[str] = mapped_column(String(32), unique=True)
