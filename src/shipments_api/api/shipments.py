@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, Query
 
 from shipments_api.api.dependencies import get_service
 from shipments_api.domain.statuses import ShipmentStatus
-from shipments_api.schemas.shipment import ShipmentCreate, ShipmentRead, StatusHistoryRead
+from shipments_api.schemas.shipment import (
+    ShipmentCreate,
+    ShipmentRead,
+    StatusChange,
+    StatusHistoryRead,
+)
 from shipments_api.service.shipment import ShipmentService
 
 router = APIRouter(prefix="/shipments", tags=["shipments"])
@@ -40,3 +45,13 @@ async def list_shipments(
 ) -> list[ShipmentRead]:
     shipments = await service.list_shipments(status=status, limit=limit, offset=offset)
     return [ShipmentRead.model_validate(shipment) for shipment in shipments]
+
+
+@router.patch("/{shipment_id}/status")
+async def change_status(
+    shipment_id: uuid.UUID, data: StatusChange, service: ServiceDep
+) -> ShipmentRead:
+    shipment = await service.change_status(
+        shipment_id=shipment_id, new_status=data.status, comment=data.comment
+    )
+    return ShipmentRead.model_validate(shipment)
