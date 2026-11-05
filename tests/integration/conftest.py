@@ -4,6 +4,7 @@ import pytest_asyncio
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+import shipments_api.models.outbox  # noqa: F401
 import shipments_api.models.shipment  # noqa: F401
 from shipments_api.models.base import Base
 from tests.integration.settings import get_integration_settings
