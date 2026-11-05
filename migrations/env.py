@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import shipments_api.models.outbox  # noqa: F401
 import shipments_api.models.shipment  # noqa: F401
 from shipments_api.core.config import get_settings
 from shipments_api.models.base import Base
