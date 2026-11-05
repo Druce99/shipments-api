@@ -8,6 +8,9 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    kafka_bootstrap_servers: str
+    kafka_topic: str
+
 
 @lru_cache
 def get_settings() -> Settings:
