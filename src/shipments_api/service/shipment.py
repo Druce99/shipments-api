@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,13 +8,21 @@ from shipments_api.domain.exceptions import ShipmentNotFound
 from shipments_api.domain.statuses import ShipmentStatus, validate_transition
 from shipments_api.domain.tracking import generate_tracking_number
 from shipments_api.models.shipment import Shipment, StatusHistory
+from shipments_api.repository.outbox import OutboxRepository
 from shipments_api.repository.shipment import ShipmentRepository
+from shipments_api.schemas.events import ShipmentStatusChanged
 
 
 class ShipmentService:
-    def __init__(self, session: AsyncSession, repository: ShipmentRepository) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        repository: ShipmentRepository,
+        outbox_repository: OutboxRepository,
+    ) -> None:
         self._session = session
         self._repository = repository
+        self._outbox_repository = outbox_repository
 
     async def change_status(
         self, shipment_id: uuid.UUID, new_status: ShipmentStatus, comment: str | None = None
@@ -23,9 +32,19 @@ class ShipmentService:
             if shipment is None:
                 raise ShipmentNotFound(shipment_id)
             validate_transition(shipment.current_status, new_status)
+            old_status = shipment.current_status
             shipment.current_status = new_status
             new_history = StatusHistory(shipment_id=shipment.id, status=new_status, comment=comment)
             await self._repository.add_history(new_history)
+            event = ShipmentStatusChanged(
+                occurred_at=datetime.now(UTC),
+                shipment_id=shipment.id,
+                tracking_number=shipment.tracking_number,
+                old_status=old_status,
+                new_status=new_status,
+                comment=comment,
+            )
+            await self._outbox_repository.add(event)
             return shipment
 
     async def create_shipment(self, sender: str, recipient: str) -> Shipment:

@@ -1,18 +1,21 @@
 import uuid
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shipments_api.domain.exceptions import InvalidStatusTransition, ShipmentNotFound
 from shipments_api.domain.statuses import ShipmentStatus
+from shipments_api.models.outbox import OutboxEvent
 from shipments_api.models.shipment import Shipment, StatusHistory
+from shipments_api.repository.outbox import OutboxRepository
 from shipments_api.repository.shipment import ShipmentRepository
 from shipments_api.service.shipment import ShipmentService
 
 
 @pytest.fixture
 def service(session: AsyncSession) -> ShipmentService:
-    return ShipmentService(session, ShipmentRepository(session))
+    return ShipmentService(session, ShipmentRepository(session), OutboxRepository(session))
 
 
 async def create_shipment(
@@ -218,3 +221,89 @@ async def test_list_shipments_without_status_returns_all(service: ShipmentServic
     result = await service.list_shipments(status=None, limit=10, offset=0)
 
     assert len(result) == 2
+
+
+async def read_outbox(session: AsyncSession) -> list[OutboxEvent]:
+    session.expunge_all()
+    result = await session.scalars(select(OutboxEvent).order_by(OutboxEvent.id))
+    return list(result.all())
+
+
+@pytest.mark.asyncio
+async def test_change_status_writes_event_to_outbox(
+    session: AsyncSession, service: ShipmentService
+) -> None:
+    shipment_id = await create_shipment(session)
+
+    await service.change_status(shipment_id, ShipmentStatus.PICKED_UP, comment="Courier")
+
+    events = await read_outbox(session)
+    assert len(events) == 1
+    event = events[0]
+    assert event.event_type == "shipment.status_changed"
+    assert event.published_at is None
+    assert event.payload["event_id"] == str(event.event_id)
+    assert event.payload["shipment_id"] == str(shipment_id)
+    assert event.payload["old_status"] == "created"
+    assert event.payload["new_status"] == "picked_up"
+    assert event.payload["comment"] == "Courier"
+
+
+@pytest.mark.asyncio
+async def test_change_status_writes_one_event_per_change(
+    session: AsyncSession, service: ShipmentService
+) -> None:
+    shipment_id = await create_shipment(session)
+
+    await service.change_status(shipment_id, ShipmentStatus.PICKED_UP)
+    await service.change_status(shipment_id, ShipmentStatus.IN_TRANSIT)
+
+    events = await read_outbox(session)
+    assert [(e.payload["old_status"], e.payload["new_status"]) for e in events] == [
+        ("created", "picked_up"),
+        ("picked_up", "in_transit"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_change_status_writes_no_event_for_invalid_transition(
+    session: AsyncSession, service: ShipmentService
+) -> None:
+    shipment_id = await create_shipment(session)
+
+    with pytest.raises(InvalidStatusTransition):
+        await service.change_status(shipment_id, ShipmentStatus.DELIVERED)
+
+    assert await read_outbox(session) == []
+
+
+@pytest.mark.asyncio
+async def test_change_status_writes_no_event_for_unknown_shipment(
+    session: AsyncSession, service: ShipmentService
+) -> None:
+    with pytest.raises(ShipmentNotFound):
+        await service.change_status(uuid.uuid4(), ShipmentStatus.PICKED_UP)
+
+    assert await read_outbox(session) == []
+
+
+@pytest.mark.asyncio
+async def test_change_status_rolls_back_everything_when_outbox_write_fails(
+    session: AsyncSession,
+    service: ShipmentService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shipment_id = await create_shipment(session)
+
+    async def add_failing(self: OutboxRepository, event: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(OutboxRepository, "add", add_failing)
+
+    with pytest.raises(RuntimeError):
+        await service.change_status(shipment_id, ShipmentStatus.PICKED_UP)
+
+    status, history = await read_state(session, shipment_id)
+    assert status == ShipmentStatus.CREATED
+    assert history == []
+    assert await read_outbox(session) == []
