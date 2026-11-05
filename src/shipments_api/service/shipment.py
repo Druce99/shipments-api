@@ -7,13 +7,20 @@ from shipments_api.domain.exceptions import ShipmentNotFound
 from shipments_api.domain.statuses import ShipmentStatus, validate_transition
 from shipments_api.domain.tracking import generate_tracking_number
 from shipments_api.models.shipment import Shipment, StatusHistory
+from shipments_api.repository.outbox import OutboxRepository
 from shipments_api.repository.shipment import ShipmentRepository
 
 
 class ShipmentService:
-    def __init__(self, session: AsyncSession, repository: ShipmentRepository) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        repository: ShipmentRepository,
+        outbox_repository: OutboxRepository,
+    ) -> None:
         self._session = session
         self._repository = repository
+        self._outbox_repository = outbox_repository
 
     async def change_status(
         self, shipment_id: uuid.UUID, new_status: ShipmentStatus, comment: str | None = None

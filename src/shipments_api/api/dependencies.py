@@ -5,6 +5,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shipments_api.core.database import SessionFactory
+from shipments_api.repository.outbox import OutboxRepository
 from shipments_api.repository.shipment import ShipmentRepository
 from shipments_api.service.shipment import ShipmentService
 
@@ -18,8 +19,15 @@ def get_repository(session: Annotated[AsyncSession, Depends(get_session)]) -> Sh
     return ShipmentRepository(session)
 
 
+def get_outbox_repository(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> OutboxRepository:
+    return OutboxRepository(session)
+
+
 def get_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     repository: Annotated[ShipmentRepository, Depends(get_repository)],
+    outbox_repository: Annotated[OutboxRepository, Depends(get_outbox_repository)],
 ) -> ShipmentService:
-    return ShipmentService(session, repository)
+    return ShipmentService(session, repository, outbox_repository)
