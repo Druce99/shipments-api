@@ -54,6 +54,10 @@ max-complexity = 10
 strict = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+module = "aiokafka.*"
+ignore_missing_imports = true
+
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
 
