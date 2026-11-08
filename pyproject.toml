@@ -6,7 +6,7 @@ authors = [
     {name = "Druce99",email = "solaa07@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<4.0"
 dependencies = [
     "pydantic-settings (>=2.16.0,<3.0.0)",
     "sqlalchemy[asyncio] (>=2.1.5,<3.0.0)",
@@ -14,7 +14,8 @@ dependencies = [
     "alembic (>=1.20.0,<2.0.0)",
     "fastapi (>=0.162.0,<0.163.0)",
     "uvicorn[standard] (>=0.54.0,<0.55.0)",
-    "aiokafka (>=0.15.0,<0.16.0)"
+    "aiokafka (>=0.15.0,<0.16.0)",
+    "loguru (>=0.7.3,<0.8.0)"
 ]
 
 
