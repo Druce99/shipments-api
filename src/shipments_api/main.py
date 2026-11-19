@@ -5,7 +5,10 @@ from shipments_api.api.shipments import router
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Shipments API")
+    app = FastAPI(
+        title="Shipments API",
+        description="Create shipments, update their status, and view status history.",
+    )
     app.include_router(router)
     register_exception_handlers(app)
     return app
