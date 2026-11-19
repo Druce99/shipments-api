@@ -21,4 +21,6 @@ class InvalidStatusTransition(DomainError):
     def __init__(self, current: ShipmentStatus, target: ShipmentStatus) -> None:
         self.current = current
         self.target = target
-        super().__init__(f"Cannot change status from {current} to {target}")
+        super().__init__(
+            f"Shipment status transition from '{current}' to '{target}' is not allowed."
+        )
